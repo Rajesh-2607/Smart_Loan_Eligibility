@@ -1,0 +1,156 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    background-color: #f0f4ff;
+    color: #0f172a;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+  }
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* ── Light Card System ───────────────────────────────────────────────────── */
+.glass-panel {
+  background: #ffffff;
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  box-shadow: 0 4px 24px rgba(99, 102, 241, 0.08), 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.glass-card {
+  background: #ffffff;
+  border: 1px solid rgba(99, 102, 241, 0.10);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.15);
+  transform: translateY(-2px);
+}
+
+.glass-card-emerald:hover {
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.15);
+}
+
+/* ── Gradient Texts ──────────────────────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #0ea5e9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-text-emerald {
+  background: linear-gradient(135deg, #059669 0%, #10b981 50%, #0ea5e9 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ── Glow Badges ─────────────────────────────────────────────────────────── */
+.badge-glow-emerald {
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.3);
+}
+
+.badge-glow-indigo {
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.3);
+}
+
+.badge-glow-purple {
+  box-shadow: 0 0 16px rgba(124, 58, 237, 0.3);
+}
+
+/* ── Laser Scan Animation ────────────────────────────────────────────────── */
+@keyframes laser-scan {
+  0%   { top: 0%;   opacity: 0.8; }
+  50%  {            opacity: 1;   }
+  100% { top: 100%; opacity: 0.8; }
+}
+
+.animate-laser-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #6366f1, #0ea5e9, #6366f1, transparent);
+  box-shadow: 0 0 12px #6366f1, 0 0 24px #0ea5e9;
+  animation: laser-scan 2s ease-in-out infinite alternate;
+}
+
+/* ── Shimmer Animation ───────────────────────────────────────────────────── */
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.shimmer-badge {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer-badge::after {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255,255,255,0) 0,
+    rgba(255,255,255,0.5) 20%,
+    rgba(255,255,255,0.8) 60%,
+    rgba(255,255,255,0)
+  );
+  animation: shimmer 3s infinite;
+  content: '';
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar          { width: 6px; height: 6px; }
+::-webkit-scrollbar-track    { background: #f0f4ff; }
+::-webkit-scrollbar-thumb    { background: #c7d2fe; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #818cf8; }
+
+/* ── Range Inputs ────────────────────────────────────────────────────────── */
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+input[type=range]:focus { outline: none; }
+input[type=range]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #e0e7ff;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #4f46e5;
+  box-shadow: 0 0 0 3px #fff, 0 0 12px rgba(99, 102, 241, 0.5);
+  margin-top: -7px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+input[type=range]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 3px #fff, 0 0 20px rgba(99, 102, 241, 0.8);
+}
+
+/* ── Surface helpers ─────────────────────────────────────────────────────── */
+.surface {
+  background: #f8faff;
+  border: 1px solid #e0e7ff;
+}
+
+.surface-inset {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+}

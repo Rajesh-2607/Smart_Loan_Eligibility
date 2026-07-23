@@ -1,0 +1,39 @@
+===========================================================================
+🚀 STARTING REGULARIZED & CALIBRATED XGBOOST TRAINING WITH EPOCH LOGGING
+===========================================================================
+Loading Kaggle LendingClub Dataset from 'model_training/dataset.csv'...
+Dataset Shape: 50000 samples x 14 features
+Target Distribution: Approved=25000, Rejected=25000
+
+---------------------------------------------------------------------------
+⚡ TRAINING REGULARIZED XGBOOST (150 Boosting Iterations / Epochs)...
+---------------------------------------------------------------------------
+Epoch/Round     | Train Loss   | Val Loss     | Val Accuracy   | Val ROC-AUC 
+---------------------------------------------------------------------------
+Round [001/150]    | 0.6733       | 0.6735       | 87.77        % | 0.9444      
+Round [010/150]    | 0.5012       | 0.5011       | 98.04        % | 0.9978      
+Round [020/150]    | 0.3775       | 0.3773       | 98.25        % | 0.9984      
+Round [030/150]    | 0.2911       | 0.2910       | 98.25        % | 0.9984      
+Round [040/150]    | 0.2312       | 0.2310       | 98.30        % | 0.9984      
+Round [050/150]    | 0.1855       | 0.1854       | 98.26        % | 0.9988      
+Round [060/150]    | 0.1522       | 0.1521       | 98.34        % | 0.9989      
+Round [070/150]    | 0.1238       | 0.1239       | 98.65        % | 0.9994      
+Round [080/150]    | 0.1028       | 0.1030       | 98.71        % | 0.9996      
+Round [090/150]    | 0.0845       | 0.0847       | 99.22        % | 0.9998      
+Round [100/150]    | 0.0714       | 0.0716       | 99.35        % | 0.9999      
+Round [110/150]    | 0.0569       | 0.0572       | 99.63        % | 1.0000      
+Round [120/150]    | 0.0467       | 0.0469       | 99.82        % | 1.0000      
+Round [130/150]    | 0.0380       | 0.0381       | 99.90        % | 1.0000      
+Round [140/150]    | 0.0312       | 0.0313       | 99.93        % | 1.0000      
+Round [150/150]    | 0.0264       | 0.0264       | 99.96        % | 1.0000      
+
+---------------------------------------------------------------------------
+🎯 CALIBRATING PROBABILITY OUTPUTS (CalibratedClassifierCV)...
+---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+🎉 REGULARIZED & CALIBRATED XGBOOST TRAINING COMPLETE!
+   Validation Accuracy: 99.96%
+   Validation ROC-AUC:  1.0000
+   Training Log File:   'C:\Users\Rajesh\Downloads\Hackthon\model_training\training_log.txt'
+===========================================================================
+✅ Calibrated pipeline saved to 'C:\Users\Rajesh\Downloads\Hackthon\model_training\loan_model.pkl'

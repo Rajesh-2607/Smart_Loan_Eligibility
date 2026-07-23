@@ -1,0 +1,69 @@
+{
+  "name": "Smart Loan Document OCR & Recommendation Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "loan-application-webhook",
+        "options": {}
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "notes": "POST https://your-n8n-host/webhook/loan-application-webhook\nPayload: { preset_key, customer_name, loan_amount, income, credit_score, fixed_deposit }"
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/documents/upload",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ preset_key: $json.preset_key }) }}",
+        "options": {}
+      },
+      "name": "OCR Document Parser",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [420, 300],
+      "notes": "Calls PaddleOCR pipeline — returns structured financial fields from uploaded doc"
+    },
+    {
+      "parameters": {
+        "url": "http://backend:8000/api/evaluate",
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  customer_name: $('Webhook Trigger').item.json.customer_name,\n  income: $json.ocr_result.parsed_data.monthly_income,\n  existing_emis: $json.ocr_result.parsed_data.existing_emis,\n  credit_score: $json.ocr_result.parsed_data.credit_score,\n  fixed_deposit: $json.ocr_result.parsed_data.fixed_deposit,\n  loan_amount: $('Webhook Trigger').item.json.loan_amount || 500000,\n  tenure_months: $('Webhook Trigger').item.json.tenure_months || 36,\n  requested_product_id: $('Webhook Trigger').item.json.requested_product_id || 'standard_personal_loan'\n}) }}",
+        "options": {}
+      },
+      "name": "ML + Catalog + LLM Engine",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [640, 300],
+      "notes": "Full pipeline: XGBoost → Catalog Matcher → Gemini/OpenAI explanation. Response stored in DB audit log."
+    },
+    {
+      "parameters": {
+        "subject": "=Your Smart Loan Recommendation — {{ $json.recommended_product.name }}",
+        "text": "=Dear {{ $json.applicant.customer_name }},\n\nOur AI Recommendation Engine has evaluated your loan application.\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n🎯 RECOMMENDED PRODUCT\n━━━━━━━━━━━━━━━━━━━━━━━━\nProduct: {{ $json.recommended_product.name }}\nInterest Rate: {{ $json.recommended_product.interest_rate_apr }}% APR\nApproval Probability: {{ $json.recommended_product.approval_probability }}%\nMonthly EMI: ₹{{ $json.recommended_product.emi }}\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n💰 YOUR SAVINGS\n━━━━━━━━━━━━━━━━━━━━━━━━\nAPR Saved: {{ $json.comparison.interest_savings_apr }}%\nTotal Interest Saved: ₹{{ $json.comparison.total_interest_saved }}\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n🧠 AI EXPLANATION ({{ $json.ai_explanation.llm_model }})\n━━━━━━━━━━━━━━━━━━━━━━━━\n{{ $json.ai_explanation.summary }}\n\nKey Takeaways:\n{{ $json.ai_explanation.key_takeaways.join('\\n• ') }}\n\nThank you for banking with us.\nSmart Loan Engine — Powered by AI"
+      },
+      "name": "Email Recommendation Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [860, 300],
+      "notes": "Configure SMTP credentials in n8n credentials panel before activating this node."
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{ "node": "OCR Document Parser", "type": "main", "index": 0 }]]
+    },
+    "OCR Document Parser": {
+      "main": [[{ "node": "ML + Catalog + LLM Engine", "type": "main", "index": 0 }]]
+    },
+    "ML + Catalog + LLM Engine": {
+      "main": [[{ "node": "Email Recommendation Report", "type": "main", "index": 0 }]]
+    }
+  }
+}

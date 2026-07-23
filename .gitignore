@@ -1,0 +1,67 @@
+# ── Python / Backend ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+.venv/
+ENV/
+env/
+ENV/src/
+.env
+
+# Databases & local stores
+*.db
+*.sqlite
+backend/loan_engine.db
+
+# ── Node / Frontend ──────────────────────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.eslintcache
+.stylelintcache
+*.local
+
+# ── IDEs & System Files ───────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+
+# ── Project Specific ──────────────────────────────────────────────────────────
+datasets/loan_data.csv
+model_training/loan_model.pkl
+backend/ml/loan_approval_model.pkl
+n8n/workflows/config/
+*.log
+
+# Large CSV Datasets
+model_training/accepted_2007_to_2018q4.csv/
+model_training/rejected_2007_to_2018q4.csv/
+

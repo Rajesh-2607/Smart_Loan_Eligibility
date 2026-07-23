@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL Database ─────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: loanuser
+      POSTGRES_PASSWORD: loanpass
+      POSTGRES_DB: loan_db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loanuser -d loan_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI Backend ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://loanuser:loanpass@postgres:5432/loan_db
+      ALLOWED_ORIGINS: "http://localhost,http://localhost:3000"
+    env_file:
+      - ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../model_training/loan_model.pkl:/app/ml/loan_approval_model.pkl:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── React Frontend (Nginx) ──────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://backend:8000
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  # ── n8n Orchestration ───────────────────────────────────────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=false
+      - N8N_HOST=0.0.0.0
+      - WEBHOOK_URL=http://n8n:5678
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ../n8n:/home/node/.n8n/workflows
+
+volumes:
+  pg_data:
+  n8n_data:
