@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Loan Engine Teardown</title>
+  <meta name="description" content="Nine charts measuring the Smart Loan Eligibility dataset and codebase.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <style>
+    /* Document reset (the Artifact host normally supplies this) */
+    :root {
+      color-scheme: light;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    body { margin: 0; font: 14px system-ui, -apple-system, sans-serif; }
+    img { max-width: 100%; }
+    [hidden] { display: none !important; }
+  </style>
+  <style>
+  /* Chart deck. One 1080px column, figures stacked, two per row on wide screens.
+     Series pair validated for CVD in both themes. */
+  :root {
+    --bg:          #F3F6F4;
+    --surface:     #FFFFFF;
+    --surface-2:   #E8EDEA;
+    --fg:          #111A17;
+    --fg-dim:      #55655F;
+    --fg-faint:    #7E8E89;
+    --line:        #D2DAD7;
+    --line-strong: #B4C0BC;
+    --accent:      #0E6B52;
+    --accent-soft: #D9EBE3;
+    --dead:        #972C27;
+
+    /* chart series - validated: CVD dE 19.0 protan, 25.8 normal, contrast >= 3:1 */
+    --s-app:  #0A7DA8;
+    --s-rej:  #C2691A;
+    --s-neut: #8A9995;
+
+    --font-display: "Bitter", Georgia, "Times New Roman", serif;
+    --font-body:    "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono:    "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:          #0C1311;
+      --surface:     #141E1B;
+      --surface-2:   #1C2825;
+      --fg:          #E5EDEA;
+      --fg-dim:      #99AAA5;
+      --fg-faint:    #6F817C;
+      --line:        #293935;
+      --line-strong: #3C4F4A;
+      --accent:      #4FBF9A;
+      --accent-soft: #11302A;
+      --dead:        #E8847B;
+      --s-app:  #2E92B8;
+      --s-rej:  #C87C22;
+      --s-neut: #6F817C;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:          #0C1311;
+    --surface:     #141E1B;
+    --surface-2:   #1C2825;
+    --fg:          #E5EDEA;
+    --fg-dim:      #99AAA5;
+    --fg-faint:    #6F817C;
+    --line:        #293935;
+    --line-strong: #3C4F4A;
+    --accent:      #4FBF9A;
+    --accent-soft: #11302A;
+    --dead:        #E8847B;
+    --s-app:  #2E92B8;
+    --s-rej:  #C87C22;
+    --s-neut: #6F817C;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+
+  header { border-bottom: 1px solid var(--line); background: var(--surface); }
+  header .wrap { padding-block: 26px 22px; }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin: 0 0 8px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(25px, 4.6vw, 36px);
+    line-height: 1.08;
+    letter-spacing: -0.016em;
+    margin: 0;
+  }
+  .counts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin: 20px 0 0;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .count { background: var(--surface); padding: 13px 15px; min-width: 0; }
+  .count dt {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+    margin: 0 0 5px;
+  }
+  .count dd {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 26px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .count dd .of { font-size: 13px; font-weight: 500; color: var(--fg-dim); }
+  .count.flag dd { color: var(--dead); }
+
+  main { padding-block: 20px 44px; display: flex; flex-direction: column; gap: 16px; }
+  .duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; }
+
+  figure {
+    margin: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    min-width: 0;
+  }
+  figcaption { padding: 15px 18px 0; }
+  .fig-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: -0.008em;
+    margin: 0 0 3px;
+    text-wrap: balance;
+  }
+  .fig-scale {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-faint);
+    margin: 0;
+  }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 11px 18px 0; }
+  .lg { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--fg-dim); }
+  .lg .sw { width: 11px; height: 11px; border-radius: 2px; flex: none; }
+  .lg .dash { width: 14px; height: 0; border-top: 2px dashed var(--dead); flex: none; }
+  .fig-body { padding: 8px 18px 18px; overflow-x: auto; }
+  svg { display: block; min-width: 520px; width: 100%; height: auto; }
+  .grid { stroke: var(--line); stroke-width: 1; }
+  .ax { fill: var(--fg-faint); font-family: var(--font-mono); font-size: 10px; }
+  .axis-title { fill: var(--fg-dim); font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.06em; }
+  .barval { fill: var(--fg); font-family: var(--font-mono); font-size: 11px; font-weight: 700; }
+  .b.app { fill: var(--s-app); }
+  .b.rej { fill: var(--s-rej); }
+  .gate { stroke: var(--dead); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .gate-lbl { fill: var(--dead); font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; }
+  .ln { fill: none; stroke-width: 2; }
+  .ln.train { stroke: var(--s-rej); }
+  .ln.val { stroke: var(--s-app); stroke-dasharray: 5 4; }
+  .dot { fill: var(--s-app); stroke: var(--surface); stroke-width: 1.5; }
+
+  /* CSS bar charts */
+  .bars { display: flex; flex-direction: column; gap: 3px; padding: 6px 18px 8px; }
+  .row { display: grid; grid-template-columns: minmax(92px, 158px) minmax(0, 1fr); gap: 12px; align-items: center; }
+  .row-lbl { font-size: 13px; color: var(--fg-dim); text-align: right; min-width: 0; overflow-wrap: anywhere; }
+  .row-lbl b { color: var(--fg); font-weight: 600; }
+  .row-lbl .mono { font-family: var(--font-mono); font-size: 12px; }
+  .track { position: relative; height: 21px; display: flex; align-items: center; }
+  .fill { height: 14px; border-radius: 2px; min-width: 2px; }
+  .fill.app { background: var(--s-app); }
+  .fill.rej { background: var(--s-rej); }
+  .fill.neut { background: var(--s-neut); }
+  .fill.hi { background: var(--dead); }
+  .val {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--fg-dim);
+    padding-left: 8px;
+    white-space: nowrap;
+  }
+  .val b { color: var(--fg); font-weight: 700; }
+  .grp {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--fg);
+    grid-column: 2;
+    margin: 7px 0 1px;
+  }
+  .refline { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--line-strong); }
+  .refcap { padding: 2px 18px 15px; font-size: 11px; color: var(--fg-faint); font-family: var(--font-mono); }
+
+  footer { border-top: 1px solid var(--line); }
+  footer .wrap { padding-block: 16px 26px; }
+  footer p { margin: 0; font-size: 12px; color: var(--fg-faint); font-family: var(--font-mono); }
+
+  @media (max-width: 780px) {
+    .counts { grid-template-columns: repeat(2, 1fr); }
+    .duo { grid-template-columns: minmax(0, 1fr); }
+    .row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .row-lbl { text-align: left; }
+    .grp { grid-column: 1; }
+  }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <p class="eyebrow">Smart Loan Eligibility &middot; dataset.csv &middot; commit 9f02060</p>
+    <h1>Loan Engine Teardown</h1>
+    <dl class="counts">
+      <div class="count"><dt>Rows</dt><dd>50,000</dd></div>
+      <div class="count"><dt>Class split</dt><dd>25k<span class="of"> / 25k</span></dd></div>
+      <div class="count flag"><dt>Reported accuracy</dt><dd>99.96<span class="of">%</span></dd></div>
+      <div class="count flag"><dt>One boolean scores</dt><dd>88.62<span class="of">%</span></dd></div>
+    </dl>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <figure>
+    <figcaption>
+      <p class="fig-title">FICO score by outcome</p>
+      <p class="fig-scale">20-point bins &middot; all 50,000 rows &middot; zero approved rows below 662</p>
+    </figcaption>
+    <div class="legend">
+      <span class="lg"><span class="sw" style="background:var(--s-app)"></span>Approved &mdash; 25,000</span>
+      <span class="lg"><span class="sw" style="background:var(--s-rej)"></span>Rejected &mdash; 25,000</span>
+      <span class="lg"><span class="dash"></span>FICO 662</span>
+    </div>
+    <div class="fig-body">
+      <svg viewBox="0 0 740 252" role="img" aria-label="Histogram of FICO score by outcome. Approved rows begin at 662 and none appear below it; rejected rows span 500 to 820 with a spike of 6,986 at 500.">
+        <line class="grid" x1="56.0" y1="212.0" x2="704.0" y2="212.0"/><text class="ax" x="48.0" y="215.5" text-anchor="end">0</text>
+        <line class="grid" x1="56.0" y1="149.3" x2="704.0" y2="149.3"/><text class="ax" x="48.0" y="152.8" text-anchor="end">3k</text>
+        <line class="grid" x1="56.0" y1="86.7" x2="704.0" y2="86.7"/><text class="ax" x="48.0" y="90.2" text-anchor="end">6k</text>
+        <line class="grid" x1="56.0" y1="24.0" x2="704.0" y2="24.0"/><text class="ax" x="48.0" y="27.5" text-anchor="end">9k</text>
+
+        <rect class="b rej" x="58.5" y="66.1" width="15.5" height="145.9" rx="1.5"><title>FICO 500&#8211;519: 6,986 rejected</title></rect>
+        <rect class="b rej" x="94.5" y="181.8" width="15.5" height="30.2" rx="1.5"><title>FICO 520&#8211;539: 1,448 rejected</title></rect>
+        <rect class="b rej" x="130.5" y="182.3" width="15.5" height="29.7" rx="1.5"><title>FICO 540&#8211;559: 1,421 rejected</title></rect>
+        <rect class="b rej" x="166.5" y="184.6" width="15.5" height="27.4" rx="1.5"><title>FICO 560&#8211;579: 1,311 rejected</title></rect>
+        <rect class="b rej" x="202.5" y="181.4" width="15.5" height="30.6" rx="1.5"><title>FICO 580&#8211;599: 1,464 rejected</title></rect>
+        <rect class="b rej" x="238.5" y="177.5" width="15.5" height="34.5" rx="1.5"><title>FICO 600&#8211;619: 1,653 rejected</title></rect>
+        <rect class="b rej" x="274.5" y="169.7" width="15.5" height="42.3" rx="1.5"><title>FICO 620&#8211;639: 2,023 rejected</title></rect>
+        <rect class="b rej" x="310.5" y="166.5" width="15.5" height="45.5" rx="1.5"><title>FICO 640&#8211;659: 2,178 rejected</title></rect>
+        <rect class="b rej" x="346.5" y="170.0" width="15.5" height="42.0" rx="1.5"><title>FICO 660&#8211;679: 2,013 rejected</title></rect>
+        <rect class="b app" x="362.0" y="25.2" width="15.5" height="186.8" rx="1.5"><title>FICO 660&#8211;679: 8,941 approved</title></rect>
+        <rect class="b rej" x="382.5" y="176.6" width="15.5" height="35.4" rx="1.5"><title>FICO 680&#8211;699: 1,697 rejected</title></rect>
+        <rect class="b app" x="398.0" y="73.8" width="15.5" height="138.2" rx="1.5"><title>FICO 680&#8211;699: 6,615 approved</title></rect>
+        <rect class="b rej" x="418.5" y="187.3" width="15.5" height="24.7" rx="1.5"><title>FICO 700&#8211;719: 1,181 rejected</title></rect>
+        <rect class="b app" x="434.0" y="115.1" width="15.5" height="96.9" rx="1.5"><title>FICO 700&#8211;719: 4,637 approved</title></rect>
+        <rect class="b rej" x="454.5" y="196.1" width="15.5" height="15.9" rx="1.5"><title>FICO 720&#8211;739: 763 rejected</title></rect>
+        <rect class="b app" x="470.0" y="164.3" width="15.5" height="47.7" rx="1.5"><title>FICO 720&#8211;739: 2,282 approved</title></rect>
+        <rect class="b rej" x="490.5" y="203.1" width="15.5" height="8.9" rx="1.5"><title>FICO 740&#8211;759: 426 rejected</title></rect>
+        <rect class="b app" x="506.0" y="186.7" width="15.5" height="25.3" rx="1.5"><title>FICO 740&#8211;759: 1,210 approved</title></rect>
+        <rect class="b rej" x="526.5" y="206.8" width="15.5" height="5.2" rx="1.5"><title>FICO 760&#8211;779: 249 rejected</title></rect>
+        <rect class="b app" x="542.0" y="197.7" width="15.5" height="14.3" rx="1.5"><title>FICO 760&#8211;779: 683 approved</title></rect>
+        <rect class="b rej" x="562.5" y="209.2" width="15.5" height="2.8" rx="1.5"><title>FICO 780&#8211;799: 132 rejected</title></rect>
+        <rect class="b app" x="578.0" y="204.4" width="15.5" height="7.6" rx="1.5"><title>FICO 780&#8211;799: 366 approved</title></rect>
+        <rect class="b rej" x="598.5" y="210.9" width="15.5" height="1.1" rx="1.5"><title>FICO 800&#8211;819: 55 rejected</title></rect>
+        <rect class="b app" x="614.0" y="207.6" width="15.5" height="4.4" rx="1.5"><title>FICO 800&#8211;819: 209 approved</title></rect>
+        <rect class="b app" x="650.0" y="211.0" width="15.5" height="1.0" rx="1.5"><title>FICO 820&#8211;839: 50 approved</title></rect>
+        <rect class="b app" x="686.0" y="211.9" width="15.5" height="0.1" rx="1.5"><title>FICO 840&#8211;859: 7 approved</title></rect>
+
+        <line class="gate" x1="347.6" y1="18" x2="347.6" y2="212"/>
+        <text class="gate-lbl" x="352" y="15">662</text>
+
+        <text class="ax" x="74.0" y="228" text-anchor="middle">500</text>
+        <text class="ax" x="182.0" y="228" text-anchor="middle">560</text>
+        <text class="ax" x="290.0" y="228" text-anchor="middle">620</text>
+        <text class="ax" x="398.0" y="228" text-anchor="middle">680</text>
+        <text class="ax" x="506.0" y="228" text-anchor="middle">740</text>
+        <text class="ax" x="614.0" y="228" text-anchor="middle">800</text>
+        <text class="axis-title" x="380" y="246" text-anchor="middle">FICO SCORE</text>
+        <text class="axis-title" x="56" y="12">APPLICANTS</text>
+      </svg>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption>
+      <p class="fig-title">Training vs validation loss</p>
+      <p class="fig-scale">150 boosting rounds &middot; log loss &middot; maximum gap between the two curves: 0.0003</p>
+    </figcaption>
+    <div class="legend">
+      <span class="lg"><span class="sw" style="background:var(--s-rej)"></span>Train loss</span>
+      <span class="lg"><span class="sw" style="background:var(--s-app)"></span>Validation loss</span>
+    </div>
+    <div class="fig-body">
+      <svg viewBox="0 0 740 236" role="img" aria-label="Line chart of training and validation log loss over 150 boosting rounds. Both curves fall from 0.67 to 0.026 and overlap almost exactly, with a maximum gap of 0.0003.">
+        <line class="grid" x1="56.0" y1="196.0" x2="700.0" y2="196.0"/><text class="ax" x="48.0" y="199.5" text-anchor="end">0.0</text>
+        <line class="grid" x1="56.0" y1="146.9" x2="700.0" y2="146.9"/><text class="ax" x="48.0" y="150.4" text-anchor="end">0.2</text>
+        <line class="grid" x1="56.0" y1="97.7" x2="700.0" y2="97.7"/><text class="ax" x="48.0" y="101.2" text-anchor="end">0.4</text>
+        <line class="grid" x1="56.0" y1="48.6" x2="700.0" y2="48.6"/><text class="ax" x="48.0" y="52.1" text-anchor="end">0.6</text>
+
+        <path class="ln train" d="M56.0 30.6 L94.9 72.8 L138.1 103.2 L181.3 124.5 L224.6 139.2 L267.8 150.4 L311.0 158.6 L354.2 165.6 L397.4 170.7 L440.7 175.2 L483.9 178.5 L527.1 182.0 L570.3 184.5 L613.6 186.7 L656.8 188.3 L700.0 189.5"/>
+        <path class="ln val" d="M56.0 30.5 L94.9 72.9 L138.1 103.3 L181.3 124.5 L224.6 139.2 L267.8 150.4 L311.0 158.6 L354.2 165.6 L397.4 170.7 L440.7 175.2 L483.9 178.4 L527.1 181.9 L570.3 184.5 L613.6 186.6 L656.8 188.3 L700.0 189.5"/>
+        <g class="dot">
+          <circle cx="56.0" cy="30.5" r="2.6"><title>round 1: val loss 0.6735</title></circle>
+          <circle cx="94.9" cy="72.9" r="2.6"><title>round 10: val loss 0.5011</title></circle>
+          <circle cx="138.1" cy="103.3" r="2.6"><title>round 20: val loss 0.3773</title></circle>
+          <circle cx="181.3" cy="124.5" r="2.6"><title>round 30: val loss 0.2910</title></circle>
+          <circle cx="224.6" cy="139.2" r="2.6"><title>round 40: val loss 0.2310</title></circle>
+          <circle cx="267.8" cy="150.4" r="2.6"><title>round 50: val loss 0.1854</title></circle>
+          <circle cx="311.0" cy="158.6" r="2.6"><title>round 60: val loss 0.1521</title></circle>
+          <circle cx="354.2" cy="165.6" r="2.6"><title>round 70: val loss 0.1239</title></circle>
+          <circle cx="397.4" cy="170.7" r="2.6"><title>round 80: val loss 0.1030</title></circle>
+          <circle cx="440.7" cy="175.2" r="2.6"><title>round 90: val loss 0.0847</title></circle>
+          <circle cx="483.9" cy="178.4" r="2.6"><title>round 100: val loss 0.0716</title></circle>
+          <circle cx="527.1" cy="181.9" r="2.6"><title>round 110: val loss 0.0572</title></circle>
+          <circle cx="570.3" cy="184.5" r="2.6"><title>round 120: val loss 0.0469</title></circle>
+          <circle cx="613.6" cy="186.6" r="2.6"><title>round 130: val loss 0.0381</title></circle>
+          <circle cx="656.8" cy="188.3" r="2.6"><title>round 140: val loss 0.0313</title></circle>
+          <circle cx="700.0" cy="189.5" r="2.6"><title>round 150: val loss 0.0264</title></circle>
+        </g>
+
+        <text class="ax" x="56.0" y="212" text-anchor="middle">1</text>
+        <text class="ax" x="181.3" y="212" text-anchor="middle">30</text>
+        <text class="ax" x="311.0" y="212" text-anchor="middle">60</text>
+        <text class="ax" x="440.7" y="212" text-anchor="middle">90</text>
+        <text class="ax" x="570.3" y="212" text-anchor="middle">120</text>
+        <text class="ax" x="700.0" y="212" text-anchor="middle">150</text>
+        <text class="axis-title" x="378" y="230" text-anchor="middle">BOOSTING ROUND</text>
+        <text class="axis-title" x="56" y="12">LOG LOSS</text>
+      </svg>
+    </div>
+  </figure>
+
+  <figure>
+    <figcaption>
+      <p class="fig-title">Accuracy by approach</p>
+      <p class="fig-scale">scale 0&ndash;100% &middot; dashed line = 50% coin flip on balanced classes</p>
+    </figcaption>
+    <div class="bars">
+      <div class="row">
+        <span class="row-lbl"><b>Gradient boosting</b>, 14 features</span>
+        <div class="track"><span class="refline" style="left:50%"></span><span class="fill neut" style="width:100%"></span><span class="val"><b>100.00%</b></span></div>
+      </div>
+      <div class="row">
+        <span class="row-lbl"><b>XGBoost as shipped</b></span>
+        <div class="track"><span class="refline" style="left:50%"></span><span class="fill neut" style="width:99.96%"></span><span class="val"><b>99.96%</b></span></div>
+      </div>
+      <div class="row">
+        <span class="row-lbl">FICO rounded, FICO + rate dropped</span>
+        <div class="track"><span class="refline" style="left:50%"></span><span class="fill neut" style="width:97.98%"></span><span class="val">97.98%</span></div>
+      </div>
+      <div class="row">
+        <span class="row-lbl">Decision tree, depth 5</span>
+        <div class="track"><span class="refline" style="left:50%"></span><span class="fill neut" style="width:96.96%"></span><span class="val">96.96%</span></div>
+      </div>
+      <div class="row">
+        <span class="row-lbl"><b>One boolean</b> &mdash; is FICO fractional?</span>
+        <div class="track"><span class="refline" style="left:50%"></span><span class="fill hi" style="width:88.62%"></span><span class="val"><b>88.62%</b></span></div>
+      </div>
+      <div class="row">
+        <span class="row-lbl"><b>One threshold</b> &mdash; FICO &ge; 662</span>
+        <div class="track"><span class="refline" style="left:50%"></span><span class="fill hi" style="width:87.41%"></span><span class="val"><b>87.41%</b></span></div>
+      </div>
+    </div>
+    <p class="refcap">&nbsp;</p>
+  </figure>
+
+  <figure>
+    <figcaption>
+      <p class="fig-title">Source fingerprints by class</p>
+      <p class="fig-scale">share of rows in each class showing the trait &middot; scale 0&ndash;100%</p>
+    </figcaption>
+    <div class="legend">
+      <span class="lg"><span class="sw" style="background:var(--s-app)"></span>Approved</span>
+      <span class="lg"><span class="sw" style="background:var(--s-rej)"></span>Rejected</span>
+    </div>
+    <div class="bars">
+      <p class="grp">purpose is a canonical LendingClub code</p>
+      <div class="row">
+        <span class="row-lbl">Approved</span>
+        <div class="track"><span class="fill app" style="width:100%"></span><span class="val"><b>100.0%</b></span></div>
+      </div>
+      <div class="row">
+        <span class="row-lbl">Rejected</span>
+        <div class="track"><span class="fill rej" style="width:9%"></span><span class="val">9.0%</span></div>
+      </div>
+
+      <p class="grp">purpose is free text</p>
+      <div class="row">
+        <span class="row-lbl">Approved</span>
+        <div class="track"><span class="fill app" style="width:0.3%"></span><span class="val">0.0%</span></div>
+      </div>
+      <div class="row">
+        <span class="row-lbl">Rejected</span>
+        <div class="track"><span class="fill rej" style="width:86.4%"></span><span class="val"><b>86.4%</b></span></div>
+      </div>
+
+      <p class="grp">annual_inc has a fractional part</p>
+      <div class="row">
+        <span class="row-lbl">Approved</span>
+        <div class="track"><span class="fill app" style="width:0.5%"></span><span class="val">0.5%</span></div>
+      </div>
+      <div class="row">
+        <span class="row-lbl">Rejected</span>
+        <div class="track"><span class="fill rej" style="width:98.8%"></span><span class="val"><b>98.8%</b></span></div>
+      </div>
+
+      <p class="grp">fico_score has a fractional part</p>
+      <div class="row">
+        <span class="row-lbl">Approved</span>
+        <div class="track"><span class="fill app" style="width:0.3%"></span><span class="val">0.01%</span></div>
+      </div>
+      <div class="row">
+        <span class="row-lbl">Rejected</span>
+        <div class="track"><span class="fill rej" style="width:77.3%"></span><span class="val"><b>77.3%</b></span></div>
+      </div>
+    </div>
+    <p class="refcap">&nbsp;</p>
+  </figure>
+
+  <figure>
+    <figcaption>
+      <p class="fig-title">Accuracy by decision-tree depth</p>
+      <p class="fig-scale">scale 50&ndash;100% &middot; a depth-2 tree already reaches 87.41%</p>
+    </figcaption>
+    <div class="fig-body">
+      <svg viewBox="0 0 740 226" role="img" aria-label="Bar chart of decision tree accuracy by depth: depth 2 reaches 87.41%, depth 3 92.29%, depth 4 95.50%, depth 5 96.96%, depth 6 97.31%.">
+        <line class="grid" x1="56.0" y1="196.0" x2="700.0" y2="196.0"/><text class="ax" x="48.0" y="199.5" text-anchor="end">50%</text>
+        <line class="grid" x1="56.0" y1="127.2" x2="700.0" y2="127.2"/><text class="ax" x="48.0" y="130.7" text-anchor="end">70%</text>
+        <line class="grid" x1="56.0" y1="58.4" x2="700.0" y2="58.4"/><text class="ax" x="48.0" y="61.9" text-anchor="end">90%</text>
+        <line class="grid" x1="56.0" y1="24.0" x2="700.0" y2="24.0"/><text class="ax" x="48.0" y="27.5" text-anchor="end">100%</text>
+
+        <rect class="b app" x="79.0" y="67.3" width="82.8" height="128.7" rx="2"><title>depth 2: 87.41%</title></rect>
+        <text class="barval" x="120.4" y="60.3" text-anchor="middle">87.41%</text>
+        <text class="ax" x="120.4" y="212" text-anchor="middle">depth 2</text>
+        <rect class="b app" x="207.8" y="50.5" width="82.8" height="145.5" rx="2"><title>depth 3: 92.29%</title></rect>
+        <text class="barval" x="249.2" y="43.5" text-anchor="middle">92.29%</text>
+        <text class="ax" x="249.2" y="212" text-anchor="middle">depth 3</text>
+        <rect class="b app" x="336.6" y="39.5" width="82.8" height="156.5" rx="2"><title>depth 4: 95.50%</title></rect>
+        <text class="barval" x="378.0" y="32.5" text-anchor="middle">95.50%</text>
+        <text class="ax" x="378.0" y="212" text-anchor="middle">depth 4</text>
+        <rect class="b app" x="465.4" y="34.5" width="82.8" height="161.5" rx="2"><title>depth 5: 96.96%</title></rect>
+        <text class="barval" x="506.8" y="27.5" text-anchor="middle">96.96%</text>
+        <text class="ax" x="506.8" y="212" text-anchor="middle">depth 5</text>
+        <rect class="b app" x="594.2" y="33.3" width="82.8" height="162.7" rx="2"><title>depth 6: 97.31%</title></rect>
+        <text class="barval" x="635.6" y="26.3" text-anchor="middle">97.31%</text>
+        <text class="ax" x="635.6" y="212" text-anchor="middle">depth 6</text>
+        <text class="axis-title" x="56" y="12">ACCURACY</text>
+      </svg>
+    </div>
+  </figure>
+
+  <div class="duo">
+    <figure>
+      <figcaption>
+        <p class="fig-title">Approval rate by credit grade</p>
+        <p class="fig-scale">scale 0&ndash;100% &middot; row counts in labels</p>
+      </figcaption>
+      <div class="bars">
+        <div class="row"><span class="row-lbl"><b>A</b> <span class="mono">5,944</span></span>
+          <div class="track"><span class="fill app" style="width:72.7%"></span><span class="val">72.7%</span></div></div>
+        <div class="row"><span class="row-lbl"><b>B</b> <span class="mono">10,489</span></span>
+          <div class="track"><span class="fill app" style="width:72.6%"></span><span class="val">72.6%</span></div></div>
+        <div class="row"><span class="row-lbl"><b>C</b> <span class="mono">11,479</span></span>
+          <div class="track"><span class="fill app" style="width:63.5%"></span><span class="val">63.5%</span></div></div>
+        <div class="row"><span class="row-lbl"><b>D</b> <span class="mono">7,104</span></span>
+          <div class="track"><span class="fill app" style="width:48.3%"></span><span class="val">48.3%</span></div></div>
+        <div class="row"><span class="row-lbl"><b>E</b> <span class="mono">5,234</span></span>
+          <div class="track"><span class="fill app" style="width:33.5%"></span><span class="val">33.5%</span></div></div>
+        <div class="row"><span class="row-lbl"><b>F</b> <span class="mono">9,651</span></span>
+          <div class="track"><span class="fill app" style="width:5.2%"></span><span class="val">5.2%</span></div></div>
+        <div class="row"><span class="row-lbl"><b>G</b> <span class="mono">99</span></span>
+          <div class="track"><span class="fill hi" style="width:100%"></span><span class="val"><b>100.0%</b></span></div></div>
+      </div>
+      <p class="refcap">&nbsp;</p>
+    </figure>
+
+    <figure>
+      <figcaption>
+        <p class="fig-title">Single-feature separability</p>
+        <p class="fig-scale">ROC-AUC &middot; scale starts at 0.50 (no signal), ends at 1.00</p>
+      </figcaption>
+      <div class="bars">
+        <div class="row"><span class="row-lbl"><span class="mono">fico_score</span></span>
+          <div class="track"><span class="fill app" style="width:71.6%"></span><span class="val"><b>0.858</b></span></div></div>
+        <div class="row"><span class="row-lbl"><span class="mono">annual_inc</span></span>
+          <div class="track"><span class="fill app" style="width:71.3%"></span><span class="val"><b>0.856</b></span></div></div>
+        <div class="row"><span class="row-lbl"><span class="mono">int_rate</span></span>
+          <div class="track"><span class="fill app" style="width:55.1%"></span><span class="val">0.775</span></div></div>
+        <div class="row"><span class="row-lbl"><span class="mono">fixed_deposit</span></span>
+          <div class="track"><span class="fill app" style="width:48.0%"></span><span class="val">0.740</span></div></div>
+        <div class="row"><span class="row-lbl"><span class="mono">loan_amnt</span></span>
+          <div class="track"><span class="fill app" style="width:46.9%"></span><span class="val">0.734</span></div></div>
+        <div class="row"><span class="row-lbl"><span class="mono">installment</span></span>
+          <div class="track"><span class="fill app" style="width:35.8%"></span><span class="val">0.679</span></div></div>
+        <div class="row"><span class="row-lbl"><span class="mono">emp_length_years</span></span>
+          <div class="track"><span class="fill app" style="width:34.2%"></span><span class="val">0.671</span></div></div>
+        <div class="row"><span class="row-lbl"><span class="mono">dti</span></span>
+          <div class="track"><span class="fill app" style="width:15.4%"></span><span class="val">0.577</span></div></div>
+      </div>
+      <p class="refcap">&nbsp;</p>
+    </figure>
+  </div>
+
+  <div class="duo">
+    <figure>
+      <figcaption>
+        <p class="fig-title">Approval rate by home ownership</p>
+        <p class="fig-scale">scale 0&ndash;100% &middot; row counts in labels</p>
+      </figcaption>
+      <div class="bars">
+        <div class="row"><span class="row-lbl"><b>MORTGAGE</b> <span class="mono">20,990</span></span>
+          <div class="track"><span class="fill app" style="width:58.3%"></span><span class="val">58.3%</span></div></div>
+        <div class="row"><span class="row-lbl"><b>OWN</b> <span class="mono">5,370</span></span>
+          <div class="track"><span class="fill app" style="width:54.6%"></span><span class="val">54.6%</span></div></div>
+        <div class="row"><span class="row-lbl"><b>RENT</b> <span class="mono">23,640</span></span>
+          <div class="track"><span class="fill app" style="width:41.6%"></span><span class="val">41.6%</span></div></div>
+      </div>
+      <p class="refcap">&nbsp;</p>
+    </figure>
+
+    <figure>
+      <figcaption>
+        <p class="fig-title">Approval rate by income verification</p>
+        <p class="fig-scale">scale 0&ndash;100% &middot; row counts in labels</p>
+      </figcaption>
+      <div class="bars">
+        <div class="row"><span class="row-lbl"><b>Verified</b> <span class="mono">12,564</span></span>
+          <div class="track"><span class="fill app" style="width:59.8%"></span><span class="val">59.8%</span></div></div>
+        <div class="row"><span class="row-lbl"><b>Source Verified</b> <span class="mono">17,470</span></span>
+          <div class="track"><span class="fill app" style="width:57.4%"></span><span class="val">57.4%</span></div></div>
+        <div class="row"><span class="row-lbl"><b>Not Verified</b> <span class="mono">19,966</span></span>
+          <div class="track"><span class="fill app" style="width:37.3%"></span><span class="val">37.3%</span></div></div>
+      </div>
+      <p class="refcap">&nbsp;</p>
+    </figure>
+  </div>
+
+  <figure>
+    <figcaption>
+      <p class="fig-title">Code by area</p>
+      <p class="fig-scale">4,063 lines total &middot; bars to scale against 2,292</p>
+    </figcaption>
+    <div class="bars">
+      <div class="row"><span class="row-lbl"><b>Frontend</b> <span class="mono">React</span></span>
+        <div class="track"><span class="fill app" style="width:100%"></span><span class="val"><b>2,292</b></span></div></div>
+      <div class="row"><span class="row-lbl"><b>Backend</b> <span class="mono">FastAPI</span></span>
+        <div class="track"><span class="fill app" style="width:51.7%"></span><span class="val">1,184</span></div></div>
+      <div class="row"><span class="row-lbl"><b>Model training</b></span>
+        <div class="track"><span class="fill app" style="width:20.9%"></span><span class="val">480</span></div></div>
+      <div class="row"><span class="row-lbl"><b>n8n</b></span>
+        <div class="track"><span class="fill app" style="width:4.7%"></span><span class="val">107</span></div></div>
+    </div>
+    <p class="refcap">&nbsp;</p>
+  </figure>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>All figures measured on all 50,000 rows, no sampling. Loss curves quoted from training_log.txt.</p>
+  </div>
+</footer>
+</body>
+</html>

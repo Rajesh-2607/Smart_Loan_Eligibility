@@ -1,0 +1,5 @@
+# Safety net: if vercel is ever run from the repo root, do not upload
+# the codebase or the 4.9MB training dataset. Only visualization/ should deploy.
+*
+!visualization/
+!visualization/**
