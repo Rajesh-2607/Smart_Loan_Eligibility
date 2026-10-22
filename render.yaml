@@ -3,7 +3,8 @@ services:
     name: smart-loan-api
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    # Root context: the image also needs model_training/ to train the model.
+    dockerContext: .
     plan: free
     healthCheckPath: /health
     autoDeploy: true

@@ -21,8 +21,9 @@ services:
   # ── FastAPI Backend ─────────────────────────────────────────────────────────
   backend:
     build:
-      context: ../backend
-      dockerfile: Dockerfile
+      # Root context: the backend image trains the model from model_training/.
+      context: ..
+      dockerfile: backend/Dockerfile
     restart: unless-stopped
     ports:
       - "8000:8000"

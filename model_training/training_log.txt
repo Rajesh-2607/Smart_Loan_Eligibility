@@ -1,7 +1,7 @@
 ===========================================================================
 🚀 STARTING REGULARIZED & CALIBRATED XGBOOST TRAINING WITH EPOCH LOGGING
 ===========================================================================
-Loading Kaggle LendingClub Dataset from 'model_training/dataset.csv'...
+Loading Kaggle LendingClub Dataset from 'C:\Users\Rajesh\Downloads\RepoWork\repos\Smart_Loan_Eligibility\model_training\dataset.csv'...
 Dataset Shape: 50000 samples x 14 features
 Target Distribution: Approved=25000, Rejected=25000
 
@@ -10,22 +10,22 @@ Target Distribution: Approved=25000, Rejected=25000
 ---------------------------------------------------------------------------
 Epoch/Round     | Train Loss   | Val Loss     | Val Accuracy   | Val ROC-AUC 
 ---------------------------------------------------------------------------
-Round [001/150]    | 0.6733       | 0.6735       | 87.77        % | 0.9444      
-Round [010/150]    | 0.5012       | 0.5011       | 98.04        % | 0.9978      
-Round [020/150]    | 0.3775       | 0.3773       | 98.25        % | 0.9984      
-Round [030/150]    | 0.2911       | 0.2910       | 98.25        % | 0.9984      
-Round [040/150]    | 0.2312       | 0.2310       | 98.30        % | 0.9984      
-Round [050/150]    | 0.1855       | 0.1854       | 98.26        % | 0.9988      
-Round [060/150]    | 0.1522       | 0.1521       | 98.34        % | 0.9989      
-Round [070/150]    | 0.1238       | 0.1239       | 98.65        % | 0.9994      
-Round [080/150]    | 0.1028       | 0.1030       | 98.71        % | 0.9996      
-Round [090/150]    | 0.0845       | 0.0847       | 99.22        % | 0.9998      
-Round [100/150]    | 0.0714       | 0.0716       | 99.35        % | 0.9999      
-Round [110/150]    | 0.0569       | 0.0572       | 99.63        % | 1.0000      
-Round [120/150]    | 0.0467       | 0.0469       | 99.82        % | 1.0000      
-Round [130/150]    | 0.0380       | 0.0381       | 99.90        % | 1.0000      
-Round [140/150]    | 0.0312       | 0.0313       | 99.93        % | 1.0000      
-Round [150/150]    | 0.0264       | 0.0264       | 99.96        % | 1.0000      
+Round [001/150]    | 0.6676       | 0.6676       | 95.65        % | 0.9897      
+Round [010/150]    | 0.4952       | 0.4950       | 97.75        % | 0.9976      
+Round [020/150]    | 0.3688       | 0.3685       | 97.96        % | 0.9977      
+Round [030/150]    | 0.2866       | 0.2862       | 98.25        % | 0.9983      
+Round [040/150]    | 0.2278       | 0.2275       | 98.29        % | 0.9984      
+Round [050/150]    | 0.1849       | 0.1847       | 98.38        % | 0.9987      
+Round [060/150]    | 0.1504       | 0.1503       | 98.59        % | 0.9990      
+Round [070/150]    | 0.1230       | 0.1230       | 98.67        % | 0.9994      
+Round [080/150]    | 0.0992       | 0.0992       | 98.97        % | 0.9997      
+Round [090/150]    | 0.0822       | 0.0824       | 99.25        % | 0.9998      
+Round [100/150]    | 0.0694       | 0.0695       | 99.33        % | 0.9999      
+Round [110/150]    | 0.0584       | 0.0585       | 99.43        % | 0.9999      
+Round [120/150]    | 0.0478       | 0.0479       | 99.68        % | 1.0000      
+Round [130/150]    | 0.0394       | 0.0395       | 99.84        % | 1.0000      
+Round [140/150]    | 0.0324       | 0.0324       | 99.92        % | 1.0000      
+Round [150/150]    | 0.0270       | 0.0270       | 99.96        % | 1.0000      
 
 ---------------------------------------------------------------------------
 🎯 CALIBRATING PROBABILITY OUTPUTS (CalibratedClassifierCV)...
@@ -34,6 +34,6 @@ Round [150/150]    | 0.0264       | 0.0264       | 99.96        % | 1.0000
 🎉 REGULARIZED & CALIBRATED XGBOOST TRAINING COMPLETE!
    Validation Accuracy: 99.96%
    Validation ROC-AUC:  1.0000
-   Training Log File:   'C:\Users\Rajesh\Downloads\Hackthon\model_training\training_log.txt'
+   Training Log File:   'C:\Users\Rajesh\Downloads\RepoWork\repos\Smart_Loan_Eligibility\model_training\training_log.txt'
 ===========================================================================
-✅ Calibrated pipeline saved to 'C:\Users\Rajesh\Downloads\Hackthon\model_training\loan_model.pkl'
+✅ Calibrated pipeline saved to 'C:\Users\Rajesh\Downloads\RepoWork\repos\Smart_Loan_Eligibility\model_training\loan_model.pkl'

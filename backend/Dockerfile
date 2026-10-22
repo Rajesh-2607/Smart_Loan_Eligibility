@@ -6,10 +6,22 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY backend/ ./
+
+# Train the model into the image.
+#
+# The trained artifact is gitignored by design, so a deployed container would
+# otherwise find no model and silently serve the rule-based heuristic instead
+# of ML predictions. The dataset is committed, and training is deterministic
+# and takes a few seconds, so it runs here and the model ships in the image.
+COPY model_training/ ./model_training/
+RUN python model_training/train.py \
+    && cp model_training/loan_model.pkl ml/loan_approval_model.pkl \
+    && python -c "import os; assert os.path.getsize('ml/loan_approval_model.pkl') > 0, 'model is empty'" \
+    && rm -rf model_training
 
 EXPOSE 8000
 
