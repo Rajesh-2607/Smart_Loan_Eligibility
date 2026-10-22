@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: smart-loan-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Comma-separated list of allowed frontend origins (set to the Vercel URL).
+      - key: ALLOWED_ORIGINS
+        sync: false
+      # Optional: enables LLM explanations. Without it the app uses its
+      # rule-based explainer.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        value: sqlite:///./loan_engine.db
+      - key: FALLBACK_MODE
+        value: rule_based
+      - key: APP_ENV
+        value: production
